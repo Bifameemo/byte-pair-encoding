@@ -7,16 +7,6 @@ class Pair(NamedTuple):
 
 type Token = Pair | str
 
-class Node:
-    def __init__(self, token: Token, next: Node | None) -> None:
-        self.token: Token = token
-        self.next: Node | None = next
-
-    def __str__(self) -> str:
-        if self.next == None:
-            return format_token(self.token)
-        return format_token(self.token) + self.next.__str__()
-
 # converts text to list of tokens
 def construct_table(text: str) -> list[Token]:
     # initialise first 256 entries of table with ASCII characters
@@ -25,22 +15,18 @@ def construct_table(text: str) -> list[Token]:
         table.append(chr(i))
     
     # convert text into linked list of tokens
-    text_root: Node = Node(text[0], None)
-    current_node: Node = text_root
-    for char in text[1:]:
-        current_node.next = Node(char, None)
-        current_node = current_node.next
+    tokenised_text: list[Token] = []
+    for char in text:
+        tokenised_text.append(char)
     
     # count pairs initially
     pair_frequencies: dict[Token, int] = dict()
-    current_node = text_root
-    while current_node.next:
-        pair: Token = Pair(current_node.token, current_node.next.token)
+    for i in range(len(tokenised_text) - 1):
+        pair: Token = Pair(tokenised_text[i], tokenised_text[i + 1])
         if pair in pair_frequencies:
             pair_frequencies[pair] += 1
         else:
             pair_frequencies[pair] = 1
-        current_node = current_node.next
 
     # loop until break (when no repeated pairs exist)
     while True:
@@ -60,11 +46,9 @@ def construct_table(text: str) -> list[Token]:
         table.append(max_pair)
 
         # replace all instances of max_pair in tokenised_text and update pair_frequencies
-        # current_node -> current_node.next  -> current_node.next.next -> current_node.next.next.next
-        # before       -> first char of pair -> second char of pair    -> after
-        current_node = text_root
-        while current_node.next and current_node.next.next and current_node.next.next.next:
-            pair = Pair(current_node.next.token, current_node.next.next.token)
+        i: int = 0
+        while i <= len(tokenised_text) - 2:
+            pair = Pair(tokenised_text[i], tokenised_text[i + 1])
             if pair == max_pair:
                 # decrement frequency of adjacent pairs
                 # increment frequency of replacement pairs
@@ -73,33 +57,34 @@ def construct_table(text: str) -> list[Token]:
                 # frequency of "fX" and "Xh" increments
 
                 # pair_before
-                pair_before: Pair = Pair(current_node.token, current_node.next.token)
-                pair_frequencies[pair_before] -= 1
-                if pair_frequencies[pair_before] == 0:
-                    del pair_frequencies[pair_before]
-                
-                replacement_pair_before: Pair = Pair(current_node.token, max_pair)
-                if replacement_pair_before in pair_frequencies:
-                    pair_frequencies[replacement_pair_before] += 1
-                else:
-                    pair_frequencies[replacement_pair_before] = 1
+                if (i - 1 >= 0):
+                    pair_before: Pair = Pair(tokenised_text[i - 1], tokenised_text[i])
+                    pair_frequencies[pair_before] -= 1
+                    if pair_frequencies[pair_before] == 0:
+                        del pair_frequencies[pair_before]
+                    
+                    replacement_pair_before: Pair = Pair(tokenised_text[i - 1], max_pair)
+                    if replacement_pair_before in pair_frequencies:
+                        pair_frequencies[replacement_pair_before] += 1
+                    else:
+                        pair_frequencies[replacement_pair_before] = 1
 
                 # pair_after
-                pair_after: Pair = Pair(current_node.next.next.token, current_node.next.next.next.token)
-                pair_frequencies[pair_after] -= 1
-                if pair_frequencies[pair_after] == 0:
-                    del pair_frequencies[pair_after]
-                
-                replacement_pair_after: Pair = Pair(max_pair, current_node.next.next.next.token)
-                if replacement_pair_after in pair_frequencies:
-                    pair_frequencies[replacement_pair_after] += 1
-                else:
-                    pair_frequencies[replacement_pair_after] = 1
-                
+                if (i + 2 <= len(tokenised_text) - 1):
+                    pair_after: Pair = Pair(tokenised_text[i + 1], tokenised_text[i + 2])
+                    pair_frequencies[pair_after] -= 1
+                    if pair_frequencies[pair_after] == 0:
+                        del pair_frequencies[pair_after]
+                    
+                    replacement_pair_after: Pair = Pair(max_pair, tokenised_text[i + 2])
+                    if replacement_pair_after in pair_frequencies:
+                        pair_frequencies[replacement_pair_after] += 1
+                    else:
+                        pair_frequencies[replacement_pair_after] = 1
+                    
                 # replace pair in tokenised_text
-                replacement_node: Node = Node(max_pair, current_node.next.next.next)
-                current_node.next = replacement_node
-            current_node = current_node.next
+                tokenised_text[i:i+2] = [max_pair]
+            i += 1
         # remove max_pair from pair_frequencies since it has been replaced
         del pair_frequencies[max_pair]
     return table
